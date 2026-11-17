@@ -3,18 +3,64 @@
         <i class="fa-solid fa-toolbox"></i>
         <span class="tb-title">Toolbox</span>
         <div class="tb-titlebar-actions">
-            <div id="tbOpenSettings" class="menu_button" title="Toolbox settings"><i class="fa-solid fa-gear"></i></div>
+            <div id="tbTabTools" class="menu_button tb-tab-btn" title="Tools"><i class="fa-solid fa-grip"></i></div>
+            <div id="tbTabManage" class="menu_button tb-tab-btn" title="Manage tools"><i class="fa-solid fa-gear"></i></div>
             <div id="tbMinimize" class="menu_button" title="Minimize"><i class="fa-solid fa-window-minimize"></i></div>
             <div id="tbClose" class="menu_button" title="Close"><i class="fa-solid fa-xmark"></i></div>
         </div>
         <div class="drag-grabber"></div>
     </div>
     <div class="tb-body">
-        <div id="tbGrid" class="tb-grid"></div>
-        <div id="tbEmpty" class="tb-empty tb-hidden">
-            Toolbox is empty.<br>
-            Open the settings (<i class="fa-solid fa-gear"></i>) and flip tools to
-            "in toolbox" — they leave the hamburger / wand menus and live here.
+        <div id="tbToolsPage" class="tb-page">
+            <div id="tbGrid" class="tb-grid"></div>
+            <div id="tbEmpty" class="tb-empty tb-hidden">
+                Toolbox is empty.<br>
+                Switch to the Manage tab (⚙) and flip tools to "in toolbox" —
+                they leave the hamburger / wand menus and live here.
+            </div>
+        </div>
+        <div id="tbManagePage" class="tb-page tb-hidden">
+            <div class="tb-section">
+                <div class="tb-section-title">Hamburger menu</div>
+                <div class="tb-hint">Checked tools move out of the ☰ menu into the toolbox; unchecked tools return to the menu.</div>
+                <div id="tbOptionsList"></div>
+            </div>
+            <div class="tb-section">
+                <div class="tb-section-title">Wand menu</div>
+                <div class="tb-hint">Checked tools move out of the ✨ menu into the toolbox. Note: when every wand entry is re-homed, ST hides the wand button itself.</div>
+                <div id="tbWandList"></div>
+            </div>
+            <div class="tb-section">
+                <div class="tb-section-title">Custom tools</div>
+                <div class="tb-hint">Toolbox-only buttons that run slash commands. Plugin actions that register commands can be driven from here.</div>
+                <div id="tbCustomList"></div>
+                <div class="tb-custom-form">
+                    <label for="tbCustomLabel">Label</label>
+                    <input id="tbCustomLabel" class="text_pole" type="text" placeholder="My tool">
+                    <label for="tbCustomIcon">Icon (FontAwesome classes)</label>
+                    <div class="tb-icon-line">
+                        <input id="tbCustomIcon" class="text_pole" type="text" placeholder="fa-solid fa-wand-magic-sparkles">
+                        <i id="tbCustomIconPreview" class="fa-solid fa-toolbox"></i>
+                    </div>
+                    <label for="tbCustomScript">Script (slash commands)</label>
+                    <textarea id="tbCustomScript" class="text_pole" rows="3" placeholder="/help"></textarea>
+                    <div class="tb-custom-actions">
+                        <div id="tbCustomSave" class="menu_button">
+                            <i class="fa-solid fa-check fa-fw"></i>
+                            <span id="tbCustomSaveLabel">Add tool</span>
+                        </div>
+                        <div id="tbCustomCancel" class="menu_button tb-hidden">
+                            <i class="fa-solid fa-xmark fa-fw"></i>
+                            <span>Cancel</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tb-section">
+                <div class="tb-section-title">Toolbox contents</div>
+                <div class="tb-hint">Order of the tools inside the toolbox.</div>
+                <div id="tbOrderList"></div>
+            </div>
         </div>
     </div>
 </div>

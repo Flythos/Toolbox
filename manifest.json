@@ -7,7 +7,7 @@
     "js": "index.js",
     "css": "style.css",
     "author": "Biede",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "homePage": "https://github.com/Flythos/Toolbox",
     "auto_update": true
 }

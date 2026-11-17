@@ -61,7 +61,6 @@ extension_settings[MODULE_NAME] = settings;
 let panelElement = null;
 let fabElement = null;
 let hideStyleEl = null;
-let settingsBlock = null;
 let wandObserver = null;
 let editingCustomId = null;
 
@@ -189,6 +188,14 @@ function applyHideRules() {
 }
 
 function isSourceItemVisible(source, id) {
+    // Measured with our own hide rules disabled — otherwise every re-homed
+    // tool reads as "hidden in its menu" and the toolbox would filter itself
+    // back out (the v0.1.0 empty-grid bug).
+    const sheet = hideStyleEl?.sheet ?? null;
+    const wasDisabled = sheet?.disabled ?? false;
+    if (sheet) {
+        sheet.disabled = true;
+    }
     try {
         if (source === 'options') {
             const items = document.querySelectorAll(`#options a#${id}`);
@@ -200,6 +207,10 @@ function isSourceItemVisible(source, id) {
         }
     } catch (error) {
         console.error(`[Toolbox] visibility check failed for ${source}:${id}`, error);
+    } finally {
+        if (sheet) {
+            sheet.disabled = wasDisabled;
+        }
     }
     return false;
 }
@@ -310,29 +321,55 @@ function refreshPanel() {
     panelElement.find('#tbGrid').toggleClass('tb-hidden', models.length === 0);
 }
 
-function openToolboxSettings() {
-    try {
-        const content = document.getElementById('rm_extensions_block');
-        if (content && !content.classList.contains('openDrawer')) {
-            $('#extensions-settings-button .drawer-toggle').first().trigger('click');
-        }
-        window.setTimeout(() => {
-            document.getElementById('toolbox-settings-block')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-        }, 400);
-    } catch (error) {
-        console.error('[Toolbox] failed to open the extensions drawer', error);
+// Tools grid ↔ manage tab. The manage UI lives inside the toolbox itself;
+// ST's drawers are never toggled programmatically (that glitched the AI
+// drawer in v0.1.0).
+function switchPanelTab(tab) {
+    if (!panelElement) {
+        return;
     }
+    const showManage = tab === 'manage';
+    panelElement.find('#tbToolsPage').toggleClass('tb-hidden', showManage);
+    panelElement.find('#tbManagePage').toggleClass('tb-hidden', !showManage);
+    panelElement.find('#tbTabTools').toggleClass('tb-tab-active', !showManage);
+    panelElement.find('#tbTabManage').toggleClass('tb-tab-active', showManage);
 }
 
 function wirePanel() {
     const panel = panelElement;
     panel.find('#tbClose').on('click', hidePanel);
     panel.find('#tbMinimize').on('click', () => panel.toggleClass('tb-minimized'));
-    panel.find('#tbOpenSettings').on('click', openToolboxSettings);
-    // Delegated — the grid is re-rendered wholesale.
+    panel.find('#tbTabTools').on('click', () => switchPanelTab('tools'));
+    panel.find('#tbTabManage').on('click', () => switchPanelTab('manage'));
+    // Delegated — pages are re-rendered wholesale.
     panel.on('click', '.tb-tool', function () {
         executeTool(String($(this).data('key')));
     });
+    panel.on('change', '.tb-row-toggle', function () {
+        setInToolbox(String($(this).data('key')), Boolean(this.checked));
+    });
+    panel.on('click', '.tb-order-up', function () {
+        moveKey(String($(this).closest('.tb-order-row').data('key')), -1);
+    });
+    panel.on('click', '.tb-order-down', function () {
+        moveKey(String($(this).closest('.tb-order-row').data('key')), 1);
+    });
+    panel.on('click', '.tb-custom-edit', function () {
+        const id = String($(this).closest('.tb-custom-list-row').data('id'));
+        const tool = settings.tools.custom.find(candidate => candidate.id === id);
+        if (tool) {
+            loadCustomIntoForm(tool);
+        }
+    });
+    panel.on('click', '.tb-custom-delete', function () {
+        void deleteCustomTool(String($(this).closest('.tb-custom-list-row').data('id')));
+    });
+    panel.find('#tbCustomIcon').on('input', function () {
+        const icon = sanitizeIcon(String($(this).val() ?? '')) || 'fa-solid fa-toolbox';
+        panel.find('#tbCustomIconPreview').attr('class', icon);
+    });
+    panel.find('#tbCustomSave').on('click', saveCustomTool);
+    panel.find('#tbCustomCancel').on('click', clearCustomForm);
 }
 
 async function buildPanel() {
@@ -346,6 +383,7 @@ async function buildPanel() {
     loadMovingUIState();
     dragElement(panelElement);
     refreshPanel();
+    refreshSettingsRows();
 }
 
 function showPanel() {
@@ -353,6 +391,7 @@ function showPanel() {
         return;
     }
     refreshPanel();
+    refreshSettingsRows();
     if (panelElement.css('display') !== 'flex') {
         panelElement.addClass('resizing');
         panelElement.css('display', 'flex');
@@ -561,23 +600,21 @@ function orderRowHtml(key) {
 }
 
 function refreshSettingsRows() {
-    if (!settingsBlock) {
+    if (!panelElement) {
         return;
     }
-    settingsBlock.find('#tbOptionsList').html(
+    panelElement.find('#tbOptionsList').html(
         settings.tools.options.map(id => sourceRowHtml('options', id)).join('') || '<div class="tb-hint">Nothing discovered yet.</div>',
     );
-    settingsBlock.find('#tbWandList').html(
+    panelElement.find('#tbWandList').html(
         settings.tools.wand.map(id => sourceRowHtml('wand', id)).join('') || '<div class="tb-hint">Nothing discovered yet.</div>',
     );
-    settingsBlock.find('#tbCustomList').html(
+    panelElement.find('#tbCustomList').html(
         settings.tools.custom.map(customRowHtml).join('') || '<div class="tb-hint">No custom tools yet.</div>',
     );
-    settingsBlock.find('#tbOrderList').html(
+    panelElement.find('#tbOrderList').html(
         settings.inToolbox.map(orderRowHtml).join('') || '<div class="tb-hint">The toolbox is empty.</div>',
     );
-    settingsBlock.find('#tb_show_fab').prop('checked', settings.showFab);
-    settingsBlock.find('#tb_close_on_execute').prop('checked', settings.closeOnExecute);
 }
 
 function persistAndApply() {
@@ -612,22 +649,22 @@ function moveKey(key, delta) {
 
 function clearCustomForm() {
     editingCustomId = null;
-    settingsBlock.find('#tbCustomLabel').val('');
-    settingsBlock.find('#tbCustomIcon').val('');
-    settingsBlock.find('#tbCustomScript').val('');
-    settingsBlock.find('#tbCustomIconPreview').attr('class', 'fa-solid fa-toolbox');
-    settingsBlock.find('#tbCustomSaveLabel').text('Add tool');
-    settingsBlock.find('#tbCustomCancel').addClass('tb-hidden');
+    panelElement.find('#tbCustomLabel').val('');
+    panelElement.find('#tbCustomIcon').val('');
+    panelElement.find('#tbCustomScript').val('');
+    panelElement.find('#tbCustomIconPreview').attr('class', 'fa-solid fa-toolbox');
+    panelElement.find('#tbCustomSaveLabel').text('Add tool');
+    panelElement.find('#tbCustomCancel').addClass('tb-hidden');
 }
 
 function loadCustomIntoForm(tool) {
     editingCustomId = tool.id;
-    settingsBlock.find('#tbCustomLabel').val(tool.label);
-    settingsBlock.find('#tbCustomIcon').val(tool.icon);
-    settingsBlock.find('#tbCustomScript').val(tool.script);
-    settingsBlock.find('#tbCustomIconPreview').attr('class', tool.icon);
-    settingsBlock.find('#tbCustomSaveLabel').text('Save tool');
-    settingsBlock.find('#tbCustomCancel').removeClass('tb-hidden');
+    panelElement.find('#tbCustomLabel').val(tool.label);
+    panelElement.find('#tbCustomIcon').val(tool.icon);
+    panelElement.find('#tbCustomScript').val(tool.script);
+    panelElement.find('#tbCustomIconPreview').attr('class', tool.icon);
+    panelElement.find('#tbCustomSaveLabel').text('Save tool');
+    panelElement.find('#tbCustomCancel').removeClass('tb-hidden');
 }
 
 async function deleteCustomTool(toolId) {
@@ -654,9 +691,9 @@ async function deleteCustomTool(toolId) {
 function saveCustomTool() {
     const input = {
         id: editingCustomId ?? undefined,
-        label: String(settingsBlock.find('#tbCustomLabel').val() ?? ''),
-        icon: String(settingsBlock.find('#tbCustomIcon').val() ?? ''),
-        script: String(settingsBlock.find('#tbCustomScript').val() ?? ''),
+        label: String(panelElement.find('#tbCustomLabel').val() ?? ''),
+        icon: String(panelElement.find('#tbCustomIcon').val() ?? ''),
+        script: String(panelElement.find('#tbCustomScript').val() ?? ''),
     };
     const result = validateCustomTool(input);
     if (!result.ok) {
@@ -674,6 +711,8 @@ function saveCustomTool() {
     persistAndApply();
 }
 
+// Minimal extensions-drawer block: global toggles only. Tool selection lives
+// in the toolbox panel's Manage tab — no ST drawers are touched from code.
 function addSettingsPanel() {
     const html = `
     <div id="toolbox-settings-block" class="toolbox-settings">
@@ -687,106 +726,40 @@ function addSettingsPanel() {
                     <input id="tb_show_fab" type="checkbox">
                     <span>Show the floating toolbox button</span>
                 </label>
-                <div id="tb_reset_fab" class="menu_button">
-                    <i class="fa-solid fa-crosshairs fa-fw"></i>
-                    <span>Reset button position</span>
-                </div>
                 <label class="checkbox_label" for="tb_close_on_execute">
                     <input id="tb_close_on_execute" type="checkbox">
                     <span>Close the toolbox after using a tool</span>
                 </label>
-                <div class="tb-section">
-                    <div class="tb-section-title">Hamburger menu</div>
-                    <div class="tb-hint">Checked tools move out of the ☰ menu into the toolbox; unchecked tools return to the menu.</div>
-                    <div id="tbOptionsList"></div>
+                <div id="tb_reset_fab" class="menu_button">
+                    <i class="fa-solid fa-crosshairs fa-fw"></i>
+                    <span>Reset button position</span>
                 </div>
-                <div class="tb-section">
-                    <div class="tb-section-title">Wand menu</div>
-                    <div class="tb-hint">Checked tools move out of the ✨ menu into the toolbox. Note: when every wand entry is re-homed, ST hides the wand button itself.</div>
-                    <div id="tbWandList"></div>
-                </div>
-                <div class="tb-section">
-                    <div class="tb-section-title">Custom tools</div>
-                    <div class="tb-hint">Toolbox-only buttons that run slash commands. Plugin actions that register commands can be driven from here.</div>
-                    <div id="tbCustomList"></div>
-                    <div class="tb-custom-form">
-                        <label for="tbCustomLabel">Label</label>
-                        <input id="tbCustomLabel" class="text_pole" type="text" placeholder="My tool">
-                        <label for="tbCustomIcon">Icon (FontAwesome classes)</label>
-                        <div class="tb-icon-line">
-                            <input id="tbCustomIcon" class="text_pole" type="text" placeholder="fa-solid fa-wand-magic-sparkles">
-                            <i id="tbCustomIconPreview" class="fa-solid fa-toolbox"></i>
-                        </div>
-                        <label for="tbCustomScript">Script (slash commands)</label>
-                        <textarea id="tbCustomScript" class="text_pole" rows="3" placeholder="/help"></textarea>
-                        <div class="tb-custom-actions">
-                            <div id="tbCustomSave" class="menu_button">
-                                <i class="fa-solid fa-check fa-fw"></i>
-                                <span id="tbCustomSaveLabel">Add tool</span>
-                            </div>
-                            <div id="tbCustomCancel" class="menu_button tb-hidden">
-                                <i class="fa-solid fa-xmark fa-fw"></i>
-                                <span>Cancel</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="tb-section">
-                    <div class="tb-section-title">Toolbox contents</div>
-                    <div class="tb-hint">Order of the tools inside the toolbox.</div>
-                    <div id="tbOrderList"></div>
-                </div>
+                <div class="tb-hint">Tool selection lives in the toolbox itself — open the floating button and switch to the Manage tab (⚙).</div>
             </div>
         </div>
     </div>`;
     $('#extensions_settings2').append(html);
-    settingsBlock = $('#toolbox-settings-block');
-    wireSettings();
-    refreshSettingsRows();
+    wireDrawerSettings();
+    $('#tb_show_fab').prop('checked', settings.showFab);
+    $('#tb_close_on_execute').prop('checked', settings.closeOnExecute);
 }
 
-function wireSettings() {
-    settingsBlock.find('#tb_show_fab').on('change', function () {
+function wireDrawerSettings() {
+    $('#tb_show_fab').on('change', function () {
         settings.showFab = Boolean($(this).prop('checked'));
         saveSettingsDebounced();
         buildFab();
     });
-    settingsBlock.find('#tb_reset_fab').on('click', () => {
+    $('#tb_close_on_execute').on('change', function () {
+        settings.closeOnExecute = Boolean($(this).prop('checked'));
+        saveSettingsDebounced();
+    });
+    $('#tb_reset_fab').on('click', () => {
         settings.fab = { x: null, y: null };
         saveSettingsDebounced();
         buildFab();
         toast('success', 'Toolbox button position reset.');
     });
-    settingsBlock.find('#tb_close_on_execute').on('change', function () {
-        settings.closeOnExecute = Boolean($(this).prop('checked'));
-        saveSettingsDebounced();
-    });
-
-    settingsBlock.on('change', '.tb-row-toggle', function () {
-        setInToolbox(String($(this).data('key')), Boolean(this.checked));
-    });
-    settingsBlock.on('click', '.tb-order-up', function () {
-        moveKey(String($(this).closest('.tb-order-row').data('key')), -1);
-    });
-    settingsBlock.on('click', '.tb-order-down', function () {
-        moveKey(String($(this).closest('.tb-order-row').data('key')), 1);
-    });
-    settingsBlock.on('click', '.tb-custom-edit', function () {
-        const id = String($(this).closest('.tb-custom-list-row').data('id'));
-        const tool = settings.tools.custom.find(candidate => candidate.id === id);
-        if (tool) {
-            loadCustomIntoForm(tool);
-        }
-    });
-    settingsBlock.on('click', '.tb-custom-delete', function () {
-        void deleteCustomTool(String($(this).closest('.tb-custom-list-row').data('id')));
-    });
-    settingsBlock.find('#tbCustomIcon').on('input', function () {
-        const icon = sanitizeIcon(String($(this).val() ?? '')) || 'fa-solid fa-toolbox';
-        settingsBlock.find('#tbCustomIconPreview').attr('class', icon);
-    });
-    settingsBlock.find('#tbCustomSave').on('click', saveCustomTool);
-    settingsBlock.find('#tbCustomCancel').on('click', clearCustomForm);
 }
 
 // --- init ---
