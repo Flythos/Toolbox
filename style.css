@@ -30,12 +30,20 @@
     cursor: pointer;
     touch-action: none;
     user-select: none;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
 }
 
 #toolbox-fab:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+/* While the toolbox panel is open the button is "absorbed" into it: faded
+   out and unclickable, but kept laid out so the panel can measure the
+   button's corner for the expand/minimize animations. */
+#toolbox-fab.tb-fab-hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 #toolbox-fab.tb-fab-dragging {

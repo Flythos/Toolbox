@@ -4,7 +4,7 @@ A floating toolbox for SillyTavern: move tools **out** of the hamburger options 
 
 ## What it does
 
-- Adds a floating toolbox button (draggable, position remembered) that opens a resizable toolbox panel with two tabs:
+- Adds a floating toolbox button (draggable, position remembered) that opens a resizable toolbox panel with two tabs. The panel **grows out of the button**: the button's upper corner becomes the panel's matching upper corner (top-left on the left half of the screen, top-right on the right half), and closing (×) collapses it back into the button.
   - **Tools** — the grid of re-homed tool buttons;
   - **Manage** (⚙; the title-bar ⚙ button toggles between the two tabs) — the tool selection itself lives here: every entry discovered in the two menus with an "in toolbox" toggle (**checked** → the tool leaves its menu, hidden by a persistent stylesheet rule, and lives in the toolbox; **unchecked** → it returns to its original menu), the custom-tools editor, and the toolbox order list.
 - The **Extensions → Toolbox** settings block keeps only the global toggles: show/hide the floating button, reset its position, close-after-use.
@@ -35,7 +35,7 @@ Restart SillyTavern and hard-refresh the browser (Ctrl+F5).
 - Discovery: options-menu items are the stable `#option_*` anchors; wand entries are the uniquely-id'd `list-group-item` items that extensions append once at init. A `MutationObserver` on the wand menu keeps the catalogs current for late-loading extensions.
 - Hiding: one `<style>` element regenerated from the settings — `#options a#id{display:none!important}` / `#extensionsMenu #id{display:none!important}`. The original elements stay in the DOM and remain clickable.
 - Execution: jQuery `.trigger('click', { fromSlashCommand: true })` on the original element (the visible copy for duplicate ids); custom tools run via `executeSlashCommands`.
-- Panel: standard `#movingDivs` floating panel (`dragElement` + moving-UI state); opener button uses pointer-event drag with a 5 px click threshold and stores its position in the extension settings.
+- Panel: standard `#movingDivs` floating panel (`dragElement` + moving-UI state); it is re-anchored to the opener button's upper corner on every open (expand/minimize via scale + opacity transit) and can be dragged freely while open. The opener button uses pointer-event drag with a 5 px click threshold and stores its position in the extension settings.
 
 ## Development
 

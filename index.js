@@ -437,13 +437,41 @@ async function buildPanel() {
     refreshSettingsRows();
 }
 
+// The toolbox always grows out of the floating button: the button's upper
+// corner becomes the panel's matching upper corner (top-left when the button
+// sits on the left half of the screen, top-right on the right half), and
+// closing shrinks it back into the button.
+function fabAnchorMode() {
+    const rect = fabElement[0].getBoundingClientRect();
+    return (rect.left + rect.width / 2) <= window.innerWidth / 2 ? 'left' : 'right';
+}
+
+function anchoredPanelPosition(mode, panelWidth, panelHeight) {
+    const rect = fabElement[0].getBoundingClientRect();
+    let left = mode === 'left' ? rect.left : rect.right - panelWidth;
+    let top = rect.top;
+    // The corner alignment gives way only when the panel would otherwise
+    // leave the viewport (e.g. button parked near the bottom edge).
+    const maxLeft = Math.max(4, window.innerWidth - panelWidth - 4);
+    const maxTop = Math.max(4, window.innerHeight - panelHeight - 4);
+    left = Math.min(Math.max(4, left), maxLeft);
+    top = Math.min(Math.max(4, top), maxTop);
+    return { left: Math.round(left), top: Math.round(top) };
+}
+
 function showPanel() {
     if (!panelElement) {
         return;
     }
     refreshPanel();
     refreshSettingsRows();
-    if (panelElement.css('display') !== 'flex') {
+    if (panelElement.css('display') === 'flex') {
+        return;
+    }
+
+    if (!fabElement) {
+        // No button (disabled in settings) — nothing to grow out of; fade in
+        // where the panel was last placed.
         panelElement.addClass('resizing');
         panelElement.css('display', 'flex');
         panelElement.css('opacity', 0);
@@ -454,16 +482,75 @@ function showPanel() {
             await delay(50);
             panelElement.removeClass('resizing');
         });
+        return;
     }
+
+    // Measure invisibly first, then anchor the panel to the button's upper
+    // corner so the button visually expands into the toolbox.
+    panelElement.addClass('resizing');
+    panelElement.css({ display: 'flex', opacity: 0 });
+    const mode = fabAnchorMode();
+    const { left, top } = anchoredPanelPosition(
+        mode,
+        panelElement.outerWidth(),
+        panelElement.outerHeight(),
+    );
+    panelElement.css({
+        left: `${left}px`,
+        top: `${top}px`,
+        right: 'auto',
+        'transform-origin': mode === 'left' ? 'top left' : 'top right',
+        scale: 0.12,
+    });
+    fabElement.addClass('tb-fab-hidden');
+    panelElement.transition({
+        opacity: 1.0,
+        scale: 1,
+        duration: animation_duration,
+    }, async function () {
+        // Clear the inline transform so drag/resize behave on a plain panel.
+        panelElement.css({ transform: 'none' });
+        await delay(50);
+        panelElement.removeClass('resizing');
+    });
 }
 
 function hidePanel() {
     if (!panelElement || panelElement.css('display') === 'none') {
         return;
     }
-    panelElement.transition({ opacity: 0, duration: animation_duration }, async function () {
-        panelElement.css('display', 'none');
+
+    if (!fabElement) {
+        // Button disabled — fade out in place.
+        panelElement.transition({ opacity: 0, duration: animation_duration }, async function () {
+            panelElement.css('display', 'none');
+            await delay(50);
+        });
+        return;
+    }
+
+    // Collapse back into the floating button: shrink toward its upper corner
+    // (flying back first if the panel was dragged elsewhere). The button
+    // fades in while the panel condenses onto its spot.
+    const mode = fabAnchorMode();
+    const { left, top } = anchoredPanelPosition(
+        mode,
+        panelElement.outerWidth(),
+        panelElement.outerHeight(),
+    );
+    panelElement.addClass('resizing');
+    panelElement.css({ 'transform-origin': mode === 'left' ? 'top left' : 'top right' });
+    fabElement.removeClass('tb-fab-hidden');
+    panelElement.transition({
+        opacity: 0,
+        scale: 0.12,
+        left: `${left}px`,
+        top: `${top}px`,
+        duration: animation_duration,
+    }, async function () {
+        panelElement.css({ display: 'none', transform: 'none' });
         await delay(50);
+        panelElement.removeClass('resizing');
     });
 }
 
