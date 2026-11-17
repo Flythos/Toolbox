@@ -1,0 +1,315 @@
+/* Toolbox — floating opener button + toolbox panel + settings rows.
+   The panel shell matches the other #movingDivs panels: ST's dragElement
+   drags it via the .drag-grabber inside the titlebar. The opener is a
+   Megumin-Suite-style floating button (fixed, draggable, position persisted
+   by the extension itself). */
+
+.tb-hidden {
+    display: none !important;
+}
+
+/* --- floating opener button --- */
+
+#toolbox-fab {
+    position: fixed;
+    top: 60px;
+    left: auto;
+    right: 20px;
+    z-index: 9999;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--SmartThemeBodyColor);
+    background-color: var(--SmartThemeBlurTintColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+#toolbox-fab:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+#toolbox-fab.tb-fab-dragging {
+    opacity: 0.8;
+    transition: none;
+}
+
+#toolbox-fab.tb-fab-dragging:hover {
+    transform: none;
+}
+
+@media (max-width: 768px) {
+    #toolbox-fab {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+    }
+}
+
+/* --- toolbox panel (moving-UI shell) --- */
+
+#toolboxPanel {
+    position: fixed;
+    display: none;
+    flex-direction: column;
+    z-index: 4000;
+    left: 0;
+    top: 0;
+    margin: 0;
+    width: 380px;
+    min-width: 260px;
+    min-height: 120px;
+    max-width: 94dvw;
+    max-height: 90dvh;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    box-shadow: 0 0 10px var(--black70a);
+    background-color: var(--SmartThemeBlurTintColor);
+    overflow: hidden;
+    /* Native bottom-right resize handle. */
+    resize: both;
+}
+
+#toolboxPanel .tb-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+}
+
+/* ST's dragElement starts a drag only when the mousedown lands on
+   .drag-grabber inside #<panelId>header — stretch the grabber over the whole
+   titlebar. ST's base CSS hides .drag-grabber by default, so re-enable it. */
+#toolboxPanel .drag-grabber {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    cursor: move;
+    display: block;
+    z-index: 0;
+}
+
+#toolboxPanel .tb-titlebar-actions {
+    display: flex;
+    gap: 0.25rem;
+    /* Keep the buttons clickable above the grabber overlay. */
+    position: relative;
+    z-index: 1;
+}
+
+#toolboxPanel .tb-title {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1 1 auto;
+}
+
+#toolboxPanel .tb-titlebar-actions .menu_button {
+    height: 22px;
+    width: 22px;
+    padding: 0;
+    font-size: 12px;
+    display: grid;
+    place-items: center;
+}
+
+#toolboxPanel.tb-minimized .tb-body {
+    display: none;
+}
+
+#toolboxPanel .tb-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* --- tool grid --- */
+
+#toolboxPanel .tb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 0.4rem;
+}
+
+#toolboxPanel .tb-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.6rem 0.3rem;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    background-color: var(--black30a);
+    cursor: pointer;
+    text-align: center;
+    min-width: 0;
+    color: var(--SmartThemeBodyColor);
+}
+
+#toolboxPanel .tb-tool:hover {
+    background-color: var(--black50a);
+}
+
+#toolboxPanel .tb-tool-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+#toolboxPanel .tb-tool-label {
+    font-size: 0.72rem;
+    line-height: 1.2;
+    width: 100%;
+    overflow-wrap: break-word;
+}
+
+#toolboxPanel .tb-empty {
+    font-size: smaller;
+    opacity: 0.75;
+    text-align: center;
+    padding: 0.5rem;
+}
+
+/* --- settings drawer block --- */
+
+.toolbox-settings .tb-hint {
+    font-size: smaller;
+    opacity: 0.75;
+    margin-bottom: 0.25rem;
+}
+
+.toolbox-settings .tb-section {
+    margin-top: 0.6rem;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+    padding-top: 0.4rem;
+}
+
+.toolbox-settings .tb-section-title {
+    font-weight: bold;
+    margin-bottom: 0.2rem;
+}
+
+.toolbox-settings .tb-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0;
+    cursor: pointer;
+}
+
+.toolbox-settings .tb-row-icon {
+    width: 1.3em;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.toolbox-settings .tb-row-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.toolbox-settings .tb-row-missing {
+    opacity: 0.55;
+}
+
+.toolbox-settings .tb-missing-tag {
+    font-size: x-small;
+    border: 1px solid var(--crimson, #b3261e);
+    color: var(--crimson, #b3261e);
+    border-radius: 6px;
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+
+.toolbox-settings .tb-order-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.15rem 0;
+}
+
+.toolbox-settings .tb-order-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: smaller;
+}
+
+.toolbox-settings .tb-order-btns {
+    display: flex;
+    gap: 0.15rem;
+    flex-shrink: 0;
+}
+
+.toolbox-settings .tb-order-btns .menu_button {
+    height: 20px;
+    width: 20px;
+    padding: 0;
+    font-size: 11px;
+    display: grid;
+    place-items: center;
+}
+
+.toolbox-settings .tb-custom-list-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.15rem 0;
+}
+
+.toolbox-settings .tb-mini-btn {
+    height: 22px;
+    width: 22px;
+    padding: 0;
+    font-size: 11px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.toolbox-settings .tb-custom-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    padding: 0.5rem;
+    margin-top: 0.35rem;
+    background-color: var(--black30a);
+}
+
+.toolbox-settings .tb-icon-line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toolbox-settings .tb-icon-line input {
+    flex: 1 1 auto;
+}
+
+.toolbox-settings .tb-icon-line i {
+    font-size: 1.1rem;
+    width: 1.2em;
+    text-align: center;
+}
+
+.toolbox-settings .tb-custom-actions {
+    display: flex;
+    gap: 0.5rem;
+}

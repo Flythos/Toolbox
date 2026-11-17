@@ -1,0 +1,13 @@
+{
+    "display_name": "Toolbox",
+    "loading_order": 100,
+    "requires": [],
+    "optional": [],
+    "dependencies": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Biede",
+    "version": "0.1.0",
+    "homePage": "https://github.com/Flythos/Toolbox",
+    "auto_update": true
+}
