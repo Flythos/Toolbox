@@ -10,7 +10,8 @@ A floating toolbox for SillyTavern: move tools **out** of the hamburger options 
 - The **Extensions → Toolbox** settings block keeps only the global toggles: show/hide the floating button, reset its position, close-after-use.
 - Re-homed tools keep working exactly as before: the toolbox triggers the original (hidden) menu entry, the same way SillyTavern's own slash commands do.
 - Tools that only make sense in some contexts (Save checkpoint, Back to parent chat, TTS…) appear in the toolbox only while their original menu entry is currently visible.
-- **Custom tools**: your own buttons (label + FontAwesome icon + slash-command script). Plugin actions that register slash commands can be driven this way. Custom tools never touch any menu.
+- **Custom tools**: your own buttons (label + FontAwesome icon + either a slash-command script **or a CSS selector** that gets clicked — e.g. `#mqs_open_button` for extension openers that live outside the two menus). Custom tools never touch any menu.
+- Wand-menu discovery accepts **any** id'd element inside the menu (third-party extensions use varying DOM shapes); entries without an id are tagged with `data-toolbox-id` automatically so they can still be hidden/executed.
 - "Toolbox contents" section reorders the tools (up/down arrows).
 
 Notes:

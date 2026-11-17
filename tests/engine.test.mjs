@@ -5,6 +5,7 @@ import {
     DUPLICATE_OPTION_IDS,
     OPTIONS_SKIP,
     SCHEMA_VERSION,
+    WAND_GEN_PREFIX,
     buildHideRules,
     defaults,
     genId,
@@ -147,6 +148,11 @@ test('buildHideRules skips custom tools and unsafe ids', () => {
     assert.equal(buildHideRules(['garbage']), '');
 });
 
+test('buildHideRules uses attribute selector for generated wand ids', () => {
+    const key = keyToString('wand', `${WAND_GEN_PREFIX}abc123`);
+    assert.equal(buildHideRules([key]), '#extensionsMenu [data-toolbox-id="gen-abc123"]{display:none!important}');
+});
+
 test('buildHideRules preserves order and joins rules', () => {
     const css = buildHideRules(['wand:send_picture', 'options:option_regenerate', 'custom:x']);
     assert.equal(css, '#extensionsMenu #send_picture{display:none!important}\n#options a#option_regenerate{display:none!important}');
@@ -186,8 +192,17 @@ test('validateCustomTool defaults the icon', () => {
 
 test('validateCustomTool rejects empty label/script', () => {
     assert.equal(validateCustomTool({ label: '  ', script: '/x' }).ok, false);
-    assert.equal(validateCustomTool({ label: 'L', script: '' }).ok, false);
+    assert.equal(validateCustomTool({ label: 'L', script: '', selector: '' }).ok, false);
     assert.equal(validateCustomTool(null).ok, false);
+});
+
+test('validateCustomTool accepts selector-only tools and rejects both', () => {
+    const result = validateCustomTool({ label: 'MQS', script: '', selector: '#mqs_open_button' });
+    assert.equal(result.ok, true);
+    assert.equal(result.tool.selector, '#mqs_open_button');
+    assert.equal(result.tool.script, '');
+    assert.equal(validateCustomTool({ label: 'L', script: '/x', selector: '#y' }).ok, false);
+    assert.equal(validateCustomTool({ label: 'L', selector: '   ' }).ok, false);
 });
 
 // --- genId / constants ---

@@ -27,6 +27,11 @@ export const DUPLICATE_OPTION_IDS = new Set(['option_close_chat']);
 const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 const ICON_TOKEN = /^fa-[a-z0-9-]+$/i;
 
+// Prefix for generated ids on wand-menu entries that ship without an id.
+// Those elements are tagged data-toolbox-id="gen-…" at discovery time and
+// hidden via attribute selectors instead of id selectors.
+export const WAND_GEN_PREFIX = 'gen-';
+
 export function defaults() {
     return {
         version: SCHEMA_VERSION,
@@ -138,7 +143,9 @@ export function buildHideRules(inToolbox) {
         if (parsed.source === 'options') {
             rules.push(`#options a#${parsed.id}{display:none!important}`);
         } else if (parsed.source === 'wand') {
-            rules.push(`#extensionsMenu #${parsed.id}{display:none!important}`);
+            rules.push(parsed.id.startsWith(WAND_GEN_PREFIX)
+                ? `#extensionsMenu [data-toolbox-id="${parsed.id}"]{display:none!important}`
+                : `#extensionsMenu #${parsed.id}{display:none!important}`);
         }
     }
     return rules.join('\n');
@@ -153,15 +160,24 @@ export function sanitizeIcon(raw) {
 }
 
 // Validates + normalizes a custom tool definition from the settings form.
+// A tool runs either a slash-command script OR clicks an element matched by a
+// CSS selector (for extension openers that live outside the two menus).
 // Returns { ok: true, tool } or { ok: false, error }.
 export function validateCustomTool(input) {
     const label = String(input?.label ?? '').trim();
     const script = String(input?.script ?? '').trim();
+    const selector = String(input?.selector ?? '').trim();
     if (!label) {
         return { ok: false, error: 'Label is required.' };
     }
-    if (!script) {
-        return { ok: false, error: 'Script is required.' };
+    if (script && selector) {
+        return { ok: false, error: 'Provide either a script or an element selector — not both.' };
+    }
+    if (!script && !selector) {
+        return { ok: false, error: 'A script or an element selector is required.' };
+    }
+    if (selector.length > 300) {
+        return { ok: false, error: 'Selector is too long.' };
     }
     return {
         ok: true,
@@ -170,6 +186,7 @@ export function validateCustomTool(input) {
             label,
             icon: sanitizeIcon(input.icon) || 'fa-solid fa-toolbox',
             script,
+            selector,
         },
     };
 }

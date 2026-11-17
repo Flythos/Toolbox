@@ -36,7 +36,9 @@ import { delay, escapeHtml } from '../../../../scripts/utils.js';
 import {
     DUPLICATE_OPTION_IDS,
     OPTIONS_SKIP,
+    WAND_GEN_PREFIX,
     buildHideRules,
+    genId,
     keyToString,
     mergeDefaults,
     normalizeOrder,
@@ -117,19 +119,55 @@ function discoverOptions() {
     });
 }
 
-function discoverWand() {
-    $('#extensionsMenu .list-group-item[id]').each(function () {
-        const id = String(this.id);
-        if (!/^[A-Za-z0-9_-]+$/.test(id)) {
-            return;
+// Wand entries come in many shapes: core uses div.list-group-item inside
+// div.extension_container wrappers (caption, SD, TTS, …), third-party
+// extensions append anything from div.list-item (Prompt Patches
+// #cppMenuButton, JaiBridge #jai-wand-debug) to bare buttons. So accept ANY
+// id'd element inside the menu; id-less entry buttons are tagged with
+// data-toolbox-id="gen-…" at discovery so they can be hidden/executed stably.
+const WAND_CONTAINER_ID = /_wand_container$/;
+
+function hasWandEntryAncestor(el) {
+    const menu = document.getElementById('extensionsMenu');
+    let node = el.parentElement;
+    while (node && node !== menu) {
+        if (node.id && !node.classList.contains('extension_container') && !WAND_CONTAINER_ID.test(node.id)) {
+            return true; // nested inside another entry — inner control, skip
         }
-        const $el = $(this);
-        const label = $el.find('span').first().text().trim() || String($el.attr('title') ?? '') || id;
+        node = node.parentElement;
+    }
+    return false;
+}
+
+function resolveWandElement(id) {
+    return document.getElementById(id)
+        ?? document.querySelector(`#extensionsMenu [data-toolbox-id="${id}"]`);
+}
+
+function discoverWand() {
+    const candidates = document.querySelectorAll('#extensionsMenu [id], #extensionsMenu [data-toolbox-id]');
+    for (const el of candidates) {
+        if (el.classList.contains('extension_container') || WAND_CONTAINER_ID.test(String(el.id ?? ''))) {
+            continue;
+        }
+        if (hasWandEntryAncestor(el)) {
+            continue;
+        }
+        let id = String(el.id ?? '');
+        if (!id) {
+            id = el.getAttribute('data-toolbox-id') ?? `${WAND_GEN_PREFIX}${genId()}`;
+            el.setAttribute('data-toolbox-id', id);
+        }
+        if (!/^[A-Za-z0-9_-]+$/.test(id)) {
+            continue;
+        }
+        const $el = $(el);
+        const label = $el.find('span').first().text().trim() || String($el.attr('title') ?? '') || $el.text().trim() || id;
         discovered.wand.set(id, {
             label,
             icon: iconClassOf($el) || 'fa-solid fa-puzzle-piece',
         });
-    });
+    }
 }
 
 // Adds newly discovered tools to the catalogs (membership is never expanded).
@@ -202,7 +240,7 @@ function isSourceItemVisible(source, id) {
             return Array.from(items).some(el => window.getComputedStyle(el).display !== 'none');
         }
         if (source === 'wand') {
-            const el = document.getElementById(id);
+            const el = resolveWandElement(id);
             return Boolean(el) && window.getComputedStyle(el).display !== 'none';
         }
     } catch (error) {
@@ -219,7 +257,19 @@ function isSourceItemVisible(source, id) {
 
 async function runCustomTool(tool) {
     try {
-        await executeSlashCommands(tool.script);
+        if (tool.selector) {
+            // Element-click tool: drives extension openers that live outside
+            // the two menus (e.g. #mqs_open_button). Native .click() also
+            // fires jQuery-bound handlers.
+            const el = document.querySelector(tool.selector);
+            if (!el) {
+                toast('warning', `Tool "${tool.label}": nothing matches "${tool.selector}".`);
+                return;
+            }
+            el.click();
+        } else {
+            await executeSlashCommands(tool.script);
+        }
     } catch (error) {
         console.error(`[Toolbox] custom tool "${tool.label}" failed`, error);
         toast('error', `Custom tool "${tool.label}" failed — see console.`);
@@ -242,7 +292,7 @@ function executeTool(key) {
             toast('warning', `"${parsed.id}" is not available right now.`);
         }
     } else if (parsed.source === 'wand') {
-        const el = document.getElementById(parsed.id);
+        const el = resolveWandElement(parsed.id);
         if (el) {
             $(el).trigger('click');
         } else {
@@ -652,6 +702,7 @@ function clearCustomForm() {
     panelElement.find('#tbCustomLabel').val('');
     panelElement.find('#tbCustomIcon').val('');
     panelElement.find('#tbCustomScript').val('');
+    panelElement.find('#tbCustomSelector').val('');
     panelElement.find('#tbCustomIconPreview').attr('class', 'fa-solid fa-toolbox');
     panelElement.find('#tbCustomSaveLabel').text('Add tool');
     panelElement.find('#tbCustomCancel').addClass('tb-hidden');
@@ -661,7 +712,8 @@ function loadCustomIntoForm(tool) {
     editingCustomId = tool.id;
     panelElement.find('#tbCustomLabel').val(tool.label);
     panelElement.find('#tbCustomIcon').val(tool.icon);
-    panelElement.find('#tbCustomScript').val(tool.script);
+    panelElement.find('#tbCustomScript').val(tool.script ?? '');
+    panelElement.find('#tbCustomSelector').val(tool.selector ?? '');
     panelElement.find('#tbCustomIconPreview').attr('class', tool.icon);
     panelElement.find('#tbCustomSaveLabel').text('Save tool');
     panelElement.find('#tbCustomCancel').removeClass('tb-hidden');
@@ -694,6 +746,7 @@ function saveCustomTool() {
         label: String(panelElement.find('#tbCustomLabel').val() ?? ''),
         icon: String(panelElement.find('#tbCustomIcon').val() ?? ''),
         script: String(panelElement.find('#tbCustomScript').val() ?? ''),
+        selector: String(panelElement.find('#tbCustomSelector').val() ?? ''),
     };
     const result = validateCustomTool(input);
     if (!result.ok) {
