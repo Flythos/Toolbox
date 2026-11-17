@@ -1,6 +1,6 @@
 {
     "name": "toolbox",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "private": true,
     "type": "module",
     "description": "SillyTavern UI extension: one floating toolbox that re-homes tools out of the hamburger options menu and the wand menu (per-tool setting control: checked tools move into the toolbox and disappear from their menu, unchecked tools return), plus user-defined custom stscript buttons.",

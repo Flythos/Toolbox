@@ -129,10 +129,6 @@
     background-color: var(--black50a);
 }
 
-#toolboxPanel.tb-minimized .tb-body {
-    display: none;
-}
-
 #toolboxPanel .tb-body {
     display: flex;
     flex-direction: column;

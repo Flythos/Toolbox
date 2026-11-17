@@ -381,16 +381,17 @@ function switchPanelTab(tab) {
     const showManage = tab === 'manage';
     panelElement.find('#tbToolsPage').toggleClass('tb-hidden', showManage);
     panelElement.find('#tbManagePage').toggleClass('tb-hidden', !showManage);
-    panelElement.find('#tbTabTools').toggleClass('tb-tab-active', !showManage);
     panelElement.find('#tbTabManage').toggleClass('tb-tab-active', showManage);
 }
 
 function wirePanel() {
     const panel = panelElement;
     panel.find('#tbClose').on('click', hidePanel);
-    panel.find('#tbMinimize').on('click', () => panel.toggleClass('tb-minimized'));
-    panel.find('#tbTabTools').on('click', () => switchPanelTab('tools'));
-    panel.find('#tbTabManage').on('click', () => switchPanelTab('manage'));
+    // Gear toggles: click → Manage tab, click again → back to the tools grid.
+    panel.find('#tbTabManage').on('click', () => {
+        const onTools = panel.find('#tbManagePage').hasClass('tb-hidden');
+        switchPanelTab(onTools ? 'manage' : 'tools');
+    });
     // Delegated — pages are re-rendered wholesale.
     panel.on('click', '.tb-tool', function () {
         executeTool(String($(this).data('key')));
